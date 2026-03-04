@@ -147,24 +147,6 @@ class UserSession {
     }
     await this.flush();
 
-    if (this.chunks.length > 1 && this.messageId) {
-      try {
-        const fullPcm = Buffer.concat(this.chunks);
-        const corrected = await transcribe(prepareWav(fullPcm));
-        // Only apply if corrected result isn't significantly shorter — whisper can
-        // drop content on long audio, and a much shorter result almost always
-        // means something was lost rather than genuinely corrected
-        const existingWords = this.transcript.trim().split(/\s+/).length;
-        const correctedWords = corrected.trim().split(/\s+/).length;
-        if (corrected && correctedWords >= existingWords * config.correctionThreshold) {
-          this.transcript = corrected;
-          await editMessage(this.channel, this.messageId, this.transcript);
-        }
-      } catch (err) {
-        console.error(`[session:${this.member.displayName}] correction pass`, err);
-      }
-    }
-
     this.chunks = [];
     this.messageId = null;
     this.transcript = "";

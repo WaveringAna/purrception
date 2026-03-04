@@ -95,13 +95,7 @@ const commands = [
         .setMinValue(500)
         .setMaxValue(15000)
     )
-    .addNumberOption((o) =>
-      o
-        .setName("correction_threshold")
-        .setDescription("Min word ratio to accept correction pass (0–1, default 0.85)")
-        .setMinValue(0)
-        .setMaxValue(1)
-    ),
+    ,
 ].map((c) => c.toJSON());
 
 // ── Register commands on startup ─────────────────────────────────────────────
@@ -192,18 +186,15 @@ async function handleLeave(interaction: ChatInputCommandInteraction) {
 async function handleConfig(interaction: ChatInputCommandInteraction) {
   const flush = interaction.options.getInteger("flush_interval");
   const silence = interaction.options.getInteger("silence_finalize");
-  const threshold = interaction.options.getNumber("correction_threshold");
 
   if (flush) config.flushIntervalMs = flush;
   if (silence) config.silenceFinalizeMs = silence;
-  if (threshold !== null) config.correctionThreshold = threshold;
 
   await interaction.reply({
     content: [
       "**STT config updated:**",
       `• Flush interval: **${config.flushIntervalMs}ms**`,
       `• Silence finalize: **${config.silenceFinalizeMs}ms**`,
-      `• Correction threshold: **${config.correctionThreshold}**`,
     ].join("\n"),
     flags: MessageFlags.Ephemeral,
   });
