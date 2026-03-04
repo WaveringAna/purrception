@@ -151,7 +151,12 @@ class UserSession {
       try {
         const fullPcm = Buffer.concat(this.chunks);
         const corrected = await transcribe(prepareWav(fullPcm));
-        if (corrected) {
+        // Only apply if corrected result isn't significantly shorter — whisper can
+        // drop content on long audio, and a much shorter result almost always
+        // means something was lost rather than genuinely corrected
+        const existingWords = this.transcript.trim().split(/\s+/).length;
+        const correctedWords = corrected.trim().split(/\s+/).length;
+        if (corrected && correctedWords >= existingWords * 0.85) {
           this.transcript = corrected;
           await editMessage(this.channel, this.messageId, this.transcript);
         }
