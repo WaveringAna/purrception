@@ -1,0 +1,23 @@
+{
+  "name": "discord-stt-bot",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.19.0",
+    "@snazzah/davey": "^0.1.10",
+    "@stablelib/xchacha20poly1305": "^2.0.1",
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.3.1",
+    "openai": "^6.25.0",
+    "prism-media": "^1.3.5",
+    "wave-resampler": "^1.0.0"
+  }
+}
