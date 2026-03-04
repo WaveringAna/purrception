@@ -31,7 +31,7 @@ export async function postMessage(
   avatarURL: string
 ): Promise<string> {
   const hook = await getWebhook(channel);
-  const msg = await hook.send({ content, username, avatarURL, fetchReply: true });
+  const msg = await hook.send({ content, username, avatarURL });
   return msg.id;
 }
 

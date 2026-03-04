@@ -1,10 +1,11 @@
+import { OpusEncoder } from "@discordjs/opus";
 import {
   EndBehaviorType,
   VoiceConnection,
   VoiceReceiver,
 } from "@discordjs/voice";
 import { type GuildMember, type TextChannel } from "discord.js";
-import prism from "prism-media";
+import { Transform, type TransformCallback } from "node:stream";
 import { MIN_INPUT_BYTES, prepareWav } from "./audio-utils";
 import { config } from "./config";
 import { transcribe } from "./transcriber";
@@ -203,10 +204,15 @@ export class VoiceManager {
       end: { behavior: EndBehaviorType.Manual },
     });
 
-    const decoder = new prism.opus.Decoder({
-      frameSize: 960,
-      channels: 2,
-      rate: 48000,
+    const opus = new OpusEncoder(48000, 2);
+    const decoder = new Transform({
+      transform(chunk: Buffer, _encoding: string, cb: TransformCallback) {
+        try {
+          cb(null, opus.decode(chunk));
+        } catch (err) {
+          cb(err as Error);
+        }
+      },
     });
 
     decoder.on("data", (chunk: Buffer) => session.onAudio(chunk));
