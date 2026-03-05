@@ -104,23 +104,30 @@ class UserSession {
     const current = Buffer.concat(this.buffer);
     this.buffer = [];
 
-    if (current.length < MIN_INPUT_BYTES) return;
+    // Need a minimum to bootstrap; once we have prior chunks, any new audio is fine
+    if (current.length < MIN_INPUT_BYTES && this.chunks.length === 0) return;
 
     // Capture messageId NOW before any async work — finalize can null it mid-flight
     const messageId = this.messageId;
     const execute = messageId === null ? this.queue.reserve() : null;
 
     this.flushing = true;
+    // Accumulate before transcription so the audio is kept even if the result is blank
+    this.chunks.push(current);
+
     try {
-      const text = await transcribe(prepareWav(current));
+      // Always send the full utterance so the model has context from the start,
+      // not just the latest 3-second slice
+      const fullAudio = Buffer.concat(this.chunks);
+      const text = await transcribe(prepareWav(fullAudio));
 
       if (!text) {
         await execute?.(null);
         return;
       }
 
-      this.chunks.push(current);
-      this.transcript += (this.transcript ? " " : "") + text;
+      // Replace, not append — the full-context transcription supersedes prior partials
+      this.transcript = text;
 
       if (execute) {
         this.messageId = await execute(() =>
