@@ -2,11 +2,20 @@ import { join } from "node:path";
 
 const STATE_FILE = join(import.meta.dir, "../.vc-state.json");
 
-export interface VCState {
+export interface ChannelConfig {
+  flushIntervalMs: number;
+  silenceFinalizeMs: number;
+}
+
+export interface VCEntry {
   guildId: string;
   voiceChannelId: string;
   textChannelId: string;
+  channelConfig: ChannelConfig;
 }
+
+/** Persisted state: a list of active VC sessions (one per guild+channel combo). */
+export type VCState = VCEntry[];
 
 export async function saveState(state: VCState): Promise<void> {
   await Bun.write(STATE_FILE, JSON.stringify(state));

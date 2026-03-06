@@ -7,7 +7,8 @@ import {
 import { type GuildMember, type TextChannel } from "discord.js";
 import { Transform, type TransformCallback } from "node:stream";
 import { MIN_INPUT_BYTES, prepareWav } from "./audio-utils";
-import { config } from "./config";
+import { config as globalConfig } from "./config";
+import type { ChannelConfig } from "./persistence";
 import { transcribe } from "./transcriber";
 import { editMessage, postMessage } from "./webhook-manager";
 
@@ -64,9 +65,10 @@ class UserSession {
   constructor(
     private readonly member: GuildMember,
     private readonly channel: TextChannel,
-    private readonly queue: PostQueue
+    private readonly queue: PostQueue,
+    private readonly channelConfig: ChannelConfig
   ) {
-    const jitter = Math.random() * config.flushIntervalMs;
+    const jitter = Math.random() * this.channelConfig.flushIntervalMs;
     this.flushTimer = setTimeout(() => this.scheduleFlush(), jitter);
   }
 
@@ -75,7 +77,7 @@ class UserSession {
       if (this.destroyed) return;
       await this.flush();
       this.scheduleFlush();
-    }, config.flushIntervalMs);
+    }, this.channelConfig.flushIntervalMs);
   }
 
   onAudio(chunk: Buffer) {
@@ -95,7 +97,7 @@ class UserSession {
 
   private resetSilenceTimer() {
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
-    this.silenceTimer = setTimeout(() => this.finalize(), config.silenceFinalizeMs);
+    this.silenceTimer = setTimeout(() => this.finalize(), this.channelConfig.silenceFinalizeMs);
   }
 
   private async flush() {
@@ -180,11 +182,17 @@ export class VoiceManager {
   private speakingAt = new Map<string, number>(); // userId → timestamp they started speaking
   private healthCheck: ReturnType<typeof setInterval>;
   private queue = new PostQueue();
+  channelConfig: ChannelConfig;
 
   constructor(
     private readonly connection: VoiceConnection,
-    readonly textChannel: TextChannel
+    readonly textChannel: TextChannel,
+    channelConfig?: Partial<ChannelConfig>
   ) {
+    this.channelConfig = {
+      flushIntervalMs: channelConfig?.flushIntervalMs ?? globalConfig.flushIntervalMs,
+      silenceFinalizeMs: channelConfig?.silenceFinalizeMs ?? globalConfig.silenceFinalizeMs,
+    };
     this.healthCheck = setInterval(() => this.checkStreams(), HEALTH_CHECK_INTERVAL_MS);
 
     this.connection.receiver.speaking.on("start", (userId) => {
@@ -198,7 +206,7 @@ export class VoiceManager {
   subscribe(member: GuildMember) {
     if (this.sessions.has(member.id)) return;
     this.members.set(member.id, member);
-    const session = new UserSession(member, this.textChannel, this.queue);
+    const session = new UserSession(member, this.textChannel, this.queue, this.channelConfig);
     this.sessions.set(member.id, session);
     this.attachStream(member.id, session);
     console.log(`[voice] subscribed to ${member.displayName}`);

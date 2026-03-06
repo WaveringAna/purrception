@@ -16,8 +16,37 @@ export async function transcribe(wav: Buffer): Promise<string> {
   }
 
   const data = (await res.json()) as { text?: string };
-  const text = data.text?.trim() ?? "";
-  return isBlank(text) ? "" : text;
+  const raw = data.text?.trim() ?? "";
+  if (isBlank(raw)) return "";
+  return postProcess(raw);
+}
+
+// ── Post-processing passes ────────────────────────────────────────────────────
+// Each entry is applied in order. Use a string for literal replacement or a
+// function for context-aware logic.
+
+type Pass = [pattern: RegExp, replacement: string | ((match: string, offset: number, str: string) => string)];
+
+const PASSES: Pass[] = [
+  // Lowercase everything
+  [/^[\s\S]*$/, (match) => match.toLowerCase()],
+  // Strip periods
+  [/\./g, ""],
+  // Remove leading bullet dash
+  [/^-\s*/, ""],
+  // Replace "he" → "she", but leave stutters like "he he he" alone
+  [/\bhe\b/g, (match, offset, str) => {
+    const before = str.slice(0, offset);
+    const after = str.slice(offset + match.length);
+    if (/\bhe\s+$/.test(before) || /^\s+he\b/.test(after)) return match;
+    return "she";
+  }],
+  // Replace "man" → "woman"
+  [/\bman\b/g, "woman"],
+];
+
+function postProcess(text: string): string {
+  return PASSES.reduce((t, [pattern, replacement]) => t.replace(pattern, replacement as string), text);
 }
 
 // Whisper hallucinations on short/silent audio

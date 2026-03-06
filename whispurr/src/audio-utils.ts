@@ -9,7 +9,10 @@ export function prepareWav(input: Buffer): Buffer {
   const stereo = new Int16Array(input.buffer, input.byteOffset, input.length / 2);
   const mono = new Int16Array(stereo.length / 2);
   for (let i = 0; i < mono.length; i++) {
-    mono[i] = Math.round((stereo[i * 2]! + stereo[i * 2 + 1]!) / 2);
+    const l = stereo[i * 2];
+    const r = stereo[i * 2 + 1];
+    if (l === undefined || r === undefined) break;
+    mono[i] = Math.round((l + r) / 2);
   }
 
   // resample mutates input, so pass a copy; cubic+LPF is fast enough for speech
@@ -18,7 +21,9 @@ export function prepareWav(input: Buffer): Buffer {
   // Float64Array (still in Int16 range) → s16le Buffer
   const pcm = Buffer.allocUnsafe(resampled.length * 2);
   for (let i = 0; i < resampled.length; i++) {
-    pcm.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(resampled[i]!))), i * 2);
+    const sample = resampled[i];
+    if (sample === undefined) break;
+    pcm.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(sample))), i * 2);
   }
 
   return wrapWav(pcm);
